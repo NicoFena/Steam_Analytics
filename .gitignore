@@ -1,0 +1,12 @@
+data/*
+!data/.gitkeep
+*.csv
+*.parquet
+*.db
+*.sqlite
+*.duckdb
+
+.env
+__pycache__/
+.ipynb_checkpoints/
+.venv/
