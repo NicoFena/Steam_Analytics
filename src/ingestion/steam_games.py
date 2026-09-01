@@ -1,10 +1,42 @@
-import requests
+import os
 from datetime import datetime
 
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("STEAM_API_KEY")
+
+if not API_KEY:
+    raise RuntimeError("STEAM_API_KEY is missing from .env")
 
 APP_ID = 620
 STEAM_APP_DETAILS_URL = "https://store.steampowered.com/api/appdetails"
 
+
+def fetch_app_list(max_results=10):
+    """Fetch a list of Steam applications."""
+
+    url = "https://api.steampowered.com/IStoreService/GetAppList/v1/"
+
+    params = {
+        "key": API_KEY,
+        "include_games": True,
+        "max_results": max_results,
+    }
+
+    response = requests.get(
+        url,
+        params=params,
+        timeout=30,
+    )
+
+    response.raise_for_status()
+
+    data = response.json()
+
+    return data["response"]["apps"]
 
 def fetch_game(appid):
     """Fetch raw game data from the Steam Store API."""
@@ -64,11 +96,18 @@ def transform_game(game):
 
 
 def main():
-    raw_game = fetch_game(APP_ID)
-    game_data = transform_game(raw_game)
+    apps = fetch_app_list(max_results=10)
 
-    print(game_data)
+    for app in apps:
+        appid = app["appid"]
 
+        print(f"Fetching {appid} - {app['name']}...")
 
+        raw_game = fetch_game(appid)
+        game_data = transform_game(raw_game)
+
+        print(game_data)
+        print()
+        
 if __name__ == "__main__":
     main()
