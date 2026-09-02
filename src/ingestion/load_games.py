@@ -1,14 +1,12 @@
 import duckdb
-
+import time
 from steam_games import fetch_app_list, fetch_game, transform_game
 
 DATABASE_PATH = "data/steam_analytics.duckdb"
 
 
-def load_game(game_data):
+def load_game(con, game_data):
     """Insert one game into DuckDB if it does not already exist."""
-
-    con = duckdb.connect(DATABASE_PATH)
 
     exists = con.execute(
         """
@@ -20,7 +18,6 @@ def load_game(game_data):
     ).fetchone()
 
     if exists:
-        con.close()
         return False
 
     con.execute(
@@ -53,26 +50,70 @@ def load_game(game_data):
         ],
     )
 
-    con.close()
     return True
 
 def main():
-    apps = fetch_app_list(max_results=10)
+    apps = fetch_app_list(max_results=300)
+
+    con = duckdb.connect(DATABASE_PATH)
+
+    inserted_count = 0
+    skipped_count = 0
+    failed_count = 0
+
+    consecutive_403 = 0
 
     for app in apps:
         appid = app["appid"]
+        name = app["name"]
 
-        print(f"Loading {appid} - {app['name']}...")
+        print(f"Loading {appid} - {name}...")
 
-        raw_game = fetch_game(appid)
-        game_data = transform_game(raw_game)
+        try:
+            raw_game = fetch_game(appid)
+            time.sleep(0.5)
+            game_data = transform_game(raw_game)
+            inserted = load_game(con, game_data)
 
-        inserted = load_game(game_data)
+            # Une requête réussie remet le compteur à zéro
+            consecutive_403 = 0
 
-        if inserted:
-            print(f"Game {appid} inserted.")
-        else:
-            print(f"Game {appid} already exists. Skipped.")
+            if inserted:
+                print(f"Game {appid} inserted.")
+                inserted_count += 1
+            else:
+                print(f"Game {appid} already exists. Skipped.")
+                skipped_count += 1
+
+        except RuntimeError as error:
+            if "403" in str(error):
+                consecutive_403 += 1
+                failed_count += 1
+
+                print(
+                    f"Game {appid} failed: {error} "
+                    f"({consecutive_403}/10 consecutive 403)"
+                )
+
+                if consecutive_403 >= 10:
+                    print("10 consecutive 403 errors. Stopping ingestion.")
+                    break
+
+            else:
+                print(f"Game {appid} failed: {error}")
+                failed_count += 1
+
+        except Exception as error:
+            print(f"Game {appid} failed: {error}")
+            failed_count += 1
+
+    con.close()
+
+    print()
+    print("Loading summary:")
+    print(f"Inserted: {inserted_count}")
+    print(f"Skipped:  {skipped_count}")
+    print(f"Failed:   {failed_count}")
 
 
 if __name__ == "__main__":
