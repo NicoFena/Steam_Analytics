@@ -81,10 +81,10 @@ def fetch_game(appid, max_retries=1):
 
 
 def transform_game(game):
-    """Transform Steam API data into our games table format."""
-
     if game.get("type") != "game":
-        raise ValueError(f"App {game.get('steam_appid')} is not a game")
+        raise ValueError(
+            f"App {game.get('steam_appid')} is not a game"
+        )
 
     genres = [
         genre["description"]
@@ -96,32 +96,56 @@ def transform_game(game):
         for category in game.get("categories", [])
     ]
 
-    release_date = game.get("release_date", {}).get("date")
+    tags = [
+        tag["description"]
+        for tag in game.get("tags", [])
+    ]
 
-    if release_date:
-        for date_format in ("%d %b, %Y", "%b %d, %Y"):
-            try:
-                release_date = datetime.strptime(
-                    release_date,
-                    date_format
-                ).date()
-                break
-            except ValueError:
-                continue
-        else:
+    release_date = None
+    release_date_raw = game.get("release_date", {}).get("date")
+
+    if release_date_raw:
+        try:
+            release_date = datetime.strptime(
+                release_date_raw,
+                "%d %b, %Y"
+            ).date()
+        except ValueError:
             release_date = None
+
+    price = game.get("price_overview", {})
 
     return {
         "appid": game["steam_appid"],
         "name": game["name"],
         "type": game.get("type"),
+
         "release_date": release_date,
+
         "is_free": game.get("is_free"),
         "required_age": game.get("required_age"),
+
         "developers": game.get("developers", []),
         "publishers": game.get("publishers", []),
+
         "genres": genres,
         "categories": categories,
+        "tags": tags,
+
+        "price_initial": price.get("initial"),
+        "price_final": price.get("final"),
+        "price_discount_percent": price.get("discount_percent"),
+        "currency": price.get("currency"),
+
+        "metacritic_score": game.get("metacritic", {}).get("score"),
+        "metacritic_url": game.get("metacritic", {}).get("url"),
+
+        "recommendations_total": game.get("recommendations", {}).get("total"),
+
+        "header_image_url": game.get("header_image"),
+        "website_url": game.get("website"),
+
+        "data_fetched_at": datetime.now(),
     }
 
 

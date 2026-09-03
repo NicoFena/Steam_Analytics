@@ -6,14 +6,8 @@ DATABASE_PATH = "data/steam_analytics.duckdb"
 
 
 def load_game(con, game_data):
-    """Insert one game into DuckDB if it does not already exist."""
-
     exists = con.execute(
-        """
-        SELECT 1
-        FROM games
-        WHERE appid = ?
-        """,
+        "SELECT 1 FROM games WHERE appid = ?",
         [game_data["appid"]],
     ).fetchone()
 
@@ -32,9 +26,20 @@ def load_game(con, game_data):
             developers,
             publishers,
             genres,
-            categories
+            categories,
+            tags,
+            price_initial,
+            price_final,
+            price_discount_percent,
+            currency,
+            metacritic_score,
+            metacritic_url,
+            recommendations_total,
+            header_image_url,
+            website_url,
+            data_fetched_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         [
             game_data["appid"],
@@ -47,6 +52,17 @@ def load_game(con, game_data):
             game_data["publishers"],
             game_data["genres"],
             game_data["categories"],
+            game_data["tags"],
+            game_data["price_initial"],
+            game_data["price_final"],
+            game_data["price_discount_percent"],
+            game_data["currency"],
+            game_data["metacritic_score"],
+            game_data["metacritic_url"],
+            game_data["recommendations_total"],
+            game_data["header_image_url"],
+            game_data["website_url"],
+            game_data["data_fetched_at"],
         ],
     )
 
