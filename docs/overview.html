@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+```
+<title>Overview · Steam Analytics</title>
+
+<style>
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                     Helvetica, Arial, sans-serif;
+        background: #0f1115;
+        color: #e8eaed;
+        line-height: 1.6;
+    }
+
+    .container {
+        width: min(1100px, 90%);
+        margin: 0 auto;
+    }
+
+    header {
+        padding: 28px 0;
+        border-bottom: 1px solid #252932;
+    }
+
+    .header-inner {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .logo {
+        font-size: 18px;
+        font-weight: 600;
+    }
+
+    nav a {
+        color: #8b949e;
+        text-decoration: none;
+        font-size: 14px;
+    }
+
+    nav a:hover {
+        color: #e8eaed;
+    }
+
+    main {
+        padding: 70px 0 100px;
+    }
+
+    .eyebrow {
+        color: #8b949e;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        margin-bottom: 14px;
+    }
+
+    h1 {
+        font-size: clamp(38px, 6vw, 58px);
+        line-height: 1.1;
+        letter-spacing: -1.5px;
+        margin-bottom: 18px;
+    }
+
+    .intro {
+        color: #aeb4bd;
+        font-size: 18px;
+        max-width: 700px;
+        margin-bottom: 60px;
+    }
+
+    .section {
+        margin-top: 70px;
+    }
+
+    .section-header {
+        margin-bottom: 28px;
+    }
+
+    h2 {
+        font-size: 25px;
+        letter-spacing: -0.5px;
+        margin-bottom: 8px;
+    }
+
+    .section-description {
+        color: #8b949e;
+        font-size: 15px;
+        max-width: 650px;
+    }
+
+    .kpis {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+    }
+
+    .card {
+        border: 1px solid #252932;
+        background: #14171c;
+        border-radius: 9px;
+        padding: 24px;
+    }
+
+    .kpi-value {
+        font-size: 30px;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+    }
+
+    .kpi-label {
+        color: #8b949e;
+        font-size: 13px;
+        margin-top: 4px;
+    }
+
+    .analysis-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+    }
+
+    .analysis-card {
+        min-height: 180px;
+    }
+
+    .analysis-card h3 {
+        font-size: 18px;
+        margin-bottom: 10px;
+    }
+
+    .analysis-card p {
+        color: #8b949e;
+        font-size: 14px;
+    }
+
+    .analysis-status {
+        display: inline-block;
+        margin-top: 24px;
+        font-size: 12px;
+        color: #6f7782;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .methodology {
+        border-left: 2px solid #3a404b;
+        padding-left: 20px;
+        color: #8b949e;
+        font-size: 14px;
+        max-width: 750px;
+    }
+
+    footer {
+        border-top: 1px solid #252932;
+        padding: 24px 0;
+        color: #6f7782;
+        font-size: 13px;
+    }
+
+    @media (max-width: 800px) {
+        .kpis {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .analysis-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 500px) {
+        .kpis {
+            grid-template-columns: 1fr;
+        }
+
+        .header-inner {
+            align-items: flex-start;
+        }
+
+        main {
+            padding-top: 50px;
+        }
+    }
+</style>
+```
+
+</head>
+
+<body>
+
+<header>
+    <div class="container header-inner">
+        <div class="logo">Steam Analytics</div>
+
+```
+    <nav>
+        <a href="index.html">Home</a>
+    </nav>
+</div>
+```
+
+</header>
+
+<main>
+    <div class="container">
+
+```
+    <div class="eyebrow">
+        Dataset Overview
+    </div>
+
+    <h1>
+        Understanding the dataset
+    </h1>
+
+    <p class="intro">
+        An overview of the Steam game sample used throughout this case study, before moving into statistical analysis, regression and segmentation.
+    </p>
+
+
+    <!-- DATASET -->
+
+    <section class="section">
+
+        <div class="section-header">
+            <h2>Dataset</h2>
+
+            <p class="section-description">
+                Basic characteristics of the games currently included in the analysis.
+            </p>
+        </div>
+
+        <div class="kpis">
+
+            <div class="card">
+                <div class="kpi-value">215</div>
+                <div class="kpi-label">Games analyzed</div>
+            </div>
+
+            <div class="card">
+                <div class="kpi-value">1998–2021</div>
+                <div class="kpi-label">Release period</div>
+            </div>
+
+            <div class="card">
+                <div class="kpi-value">9</div>
+                <div class="kpi-label">Free games</div>
+            </div>
+
+            <div class="card">
+                <div class="kpi-value">206</div>
+                <div class="kpi-label">Paid games</div>
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- DATA COVERAGE -->
+
+    <section class="section">
+
+        <div class="section-header">
+            <h2>Data coverage</h2>
+
+            <p class="section-description">
+                Not every Steam field is available for every game. Missing values
+                are handled according to the requirements of each analysis.
+            </p>
+        </div>
+
+        <div class="kpis">
+
+            <div class="card">
+                <div class="kpi-value">144</div>
+                <div class="kpi-label">Games with Metacritic score</div>
+            </div>
+
+            <div class="card">
+                <div class="kpi-value">192</div>
+                <div class="kpi-label">Games with recommendations</div>
+            </div>
+
+            <div class="card">
+                <div class="kpi-value">17</div>
+                <div class="kpi-label">Games without price data</div>
+            </div>
+
+            <div class="card">
+                <div class="kpi-value">3</div>
+                <div class="kpi-label">Games without release date</div>
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- ANALYSIS -->
+
+    <section class="section">
+
+        <div class="section-header">
+            <h2>Game landscape</h2>
+
+            <p class="section-description">
+                The first layer of analysis focuses on the composition of the sample:
+                genres, release patterns and pricing.
+            </p>
+        </div>
+
+        <div class="analysis-grid">
+
+            <div class="card analysis-card">
+                <h3>Genres</h3>
+
+                <p>
+                    Explore which game genres are most represented in the sample
+                    and how the Steam catalog is distributed across categories.
+                </p>
+
+                <span class="analysis-status">
+                    Analysis
+                </span>
+            </div>
+
+            <div class="card analysis-card">
+                <h3>Release trends</h3>
+
+                <p>
+                    Examine how the games in the dataset are distributed across
+                    release years.
+                </p>
+
+                <span class="analysis-status">
+                    Analysis
+                </span>
+            </div>
+
+            <div class="card analysis-card">
+                <h3>Pricing</h3>
+
+                <p>
+                    Study the distribution of game prices and the differences
+                    between free and paid games.
+                </p>
+
+                <span class="analysis-status">
+                    Analysis
+                </span>
+            </div>
+
+            <div class="card analysis-card">
+                <h3>Popularity</h3>
+
+                <p>
+                    Examine Steam recommendation counts as a proxy for game
+                    popularity and engagement.
+                </p>
+
+                <span class="analysis-status">
+                    Analysis
+                </span>
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- DEEP ANALYSIS -->
+
+    <section class="section">
+
+        <div class="section-header">
+            <h2>Deep analysis</h2>
+
+            <p class="section-description">
+                Beyond descriptive statistics, the project investigates relationships
+                between game characteristics and player-oriented outcomes.
+            </p>
+        </div>
+
+        <div class="analysis-grid">
+
+            <div class="card analysis-card">
+                <h3>Statistical analysis</h3>
+
+                <p>
+                    Correlations and statistical relationships between critical
+                    reception, pricing and popularity.
+                </p>
+
+                <span class="analysis-status">
+                    Coming next
+                </span>
+            </div>
+
+            <div class="card analysis-card">
+                <h3>Regression</h3>
+
+                <p>
+                    A multivariate model examining which game characteristics
+                    are associated with recommendation volume.
+                </p>
+
+                <span class="analysis-status">
+                    Coming next
+                </span>
+            </div>
+
+            <div class="card analysis-card">
+                <h3>Game segmentation</h3>
+
+                <p>
+                    Clustering games according to their characteristics in order
+                    to identify distinct profiles within the sample.
+                </p>
+
+                <span class="analysis-status">
+                    Coming next
+                </span>
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- METHODOLOGY -->
+
+    <section class="section">
+
+        <div class="section-header">
+            <h2>Methodology</h2>
+        </div>
+
+        <div class="methodology">
+            Data is collected from Steam's publicly accessible game metadata
+            and stored in DuckDB. SQL is used for data exploration and quality
+            checks, while Python is used for statistical analysis, modeling
+            and visualization.
+
+            <br><br>
+
+            The current dataset contains 215 successfully enriched games.
+            Results should therefore be interpreted as observations within
+            this sample rather than as representative statistics for the
+            entire Steam catalog.
+        </div>
+
+    </section>
+
+</div>
+```
+
+</main>
+
+<footer>
+    <div class="container">
+        Steam Analytics · Python · SQL · DuckDB
+    </div>
+</footer>
+
+</body>
+</html>
