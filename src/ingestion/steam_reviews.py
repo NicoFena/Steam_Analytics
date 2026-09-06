@@ -1,7 +1,7 @@
-import time
 from datetime import datetime
 
-import requests
+import steam_api
+from steam_api import DEFAULT_REQUEST_DELAY
 
 # The Steam Store review endpoint is public and does not require an API key
 # (unlike IStoreService/GetAppList used in steam_games.py).
@@ -12,49 +12,36 @@ DEFAULT_LANGUAGE = "all"
 NUM_PER_PAGE = 100
 
 
-def fetch_reviews_page(appid, cursor="*", language=DEFAULT_LANGUAGE, max_retries=1):
+def fetch_reviews_page(appid, cursor="*", language=DEFAULT_LANGUAGE,
+                       delay=DEFAULT_REQUEST_DELAY):
     """Fetch a single page of reviews from the Steam Store API."""
 
-    for attempt in range(max_retries + 1):
-        response = requests.get(
-            f"{STEAM_APP_REVIEWS_URL}/{appid}",
-            params={
-                "json": 1,
-                "filter": "recent",
-                "language": language,
-                "review_type": "all",
-                "purchase_type": "all",
-                "num_per_page": NUM_PER_PAGE,
-                "cursor": cursor,
-            },
-            timeout=30,
+    response = steam_api.get(
+        f"{STEAM_APP_REVIEWS_URL}/{appid}",
+        params={
+            "json": 1,
+            "filter": "recent",
+            "language": language,
+            "review_type": "all",
+            "purchase_type": "all",
+            "num_per_page": NUM_PER_PAGE,
+            "cursor": cursor,
+        },
+        delay=delay,
+    )
+
+    data = response.json()
+
+    if data.get("success") != 1:
+        raise steam_api.SteamAPIError(
+            f"Steam review query failed for app {appid}"
         )
 
-        if response.status_code == 403:
-            if attempt < max_retries:
-                print(f"403 for app {appid}. Retrying in 2s...")
-                time.sleep(2)
-                continue
-
-            raise RuntimeError(
-                f"Steam returned 403 for app {appid}"
-            )
-
-        response.raise_for_status()
-
-        data = response.json()
-
-        if data.get("success") != 1:
-            raise RuntimeError(
-                f"Steam review query failed for app {appid}"
-            )
-
-        return data
-
-    raise RuntimeError(f"Steam returned 403 for app {appid}")
+    return data
 
 
-def fetch_reviews(appid, max_reviews=1000, language=DEFAULT_LANGUAGE):
+def fetch_reviews(appid, max_reviews=1000, language=DEFAULT_LANGUAGE,
+                  delay=DEFAULT_REQUEST_DELAY):
     """Fetch reviews for a game, following the API cursor pagination."""
 
     reviews = []
@@ -62,7 +49,9 @@ def fetch_reviews(appid, max_reviews=1000, language=DEFAULT_LANGUAGE):
     seen_cursors = set()
 
     while len(reviews) < max_reviews:
-        data = fetch_reviews_page(appid, cursor=cursor, language=language)
+        data = fetch_reviews_page(
+            appid, cursor=cursor, language=language, delay=delay
+        )
 
         page = data.get("reviews", [])
 
@@ -78,8 +67,6 @@ def fetch_reviews(appid, max_reviews=1000, language=DEFAULT_LANGUAGE):
             break
 
         seen_cursors.add(cursor)
-
-        time.sleep(0.5)
 
     return reviews[:max_reviews]
 

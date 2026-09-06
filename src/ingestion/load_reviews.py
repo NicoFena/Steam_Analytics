@@ -1,22 +1,52 @@
+import argparse
+
 import duckdb
-import time
-from steam_reviews import fetch_reviews, transform_review
 
-DATABASE_PATH = "data/steam_analytics.duckdb"
+from steam_api import DEFAULT_REQUEST_DELAY, SteamAPIError
+from steam_reviews import DEFAULT_LANGUAGE, fetch_reviews, transform_review
 
-MAX_REVIEWS_PER_GAME = 1000
+DEFAULT_DATABASE_PATH = "data/steam_analytics.duckdb"
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Ingest Steam reviews into the DuckDB database."
+    )
+    parser.add_argument(
+        "--max-games", type=int, default=None,
+        help="Limit how many games to fetch reviews for (default: all games).",
+    )
+    parser.add_argument(
+        "--max-reviews", type=int, default=1000,
+        help="Max reviews to fetch per game (default: 1000).",
+    )
+    parser.add_argument(
+        "--language", default=DEFAULT_LANGUAGE,
+        help='Review language filter (default: "all").',
+    )
+    parser.add_argument(
+        "--db", default=DEFAULT_DATABASE_PATH,
+        help="Path to the DuckDB database file.",
+    )
+    parser.add_argument(
+        "--request-delay", type=float, default=DEFAULT_REQUEST_DELAY,
+        help="Minimum seconds between two Steam API requests.",
+    )
+    parser.add_argument(
+        "--max-consecutive-failures", type=int, default=10,
+        help="Stop ingestion after this many failures in a row.",
+    )
+    parser.add_argument(
+        "--refresh", action="store_true",
+        help="Also fetch games that already have reviews in the database.",
+    )
+    return parser.parse_args()
 
 
 def load_review(con, review_data):
-    exists = con.execute(
-        "SELECT 1 FROM reviews WHERE recommendationid = ?",
-        [review_data["recommendationid"]],
-    ).fetchone()
+    """Insert a review, skipping it if the recommendationid is already present."""
 
-    if exists:
-        return False
-
-    con.execute(
+    result = con.execute(
         """
         INSERT INTO reviews (
             recommendationid,
@@ -43,6 +73,8 @@ def load_review(con, review_data):
             data_fetched_at
         )
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (recommendationid) DO NOTHING
+        RETURNING recommendationid
         """,
         [
             review_data["recommendationid"],
@@ -68,83 +100,95 @@ def load_review(con, review_data):
             review_data["written_during_early_access"],
             review_data["data_fetched_at"],
         ],
-    )
+    ).fetchone()
 
-    return True
+    return result is not None
 
 
 def main():
-    con = duckdb.connect(DATABASE_PATH)
+    args = parse_args()
 
-    # Reviews are fetched for the games already ingested in the database.
+    con = duckdb.connect(args.db)
+
     games = con.execute(
         "SELECT appid, name FROM games ORDER BY appid"
     ).fetchall()
 
-    inserted_count = 0
-    skipped_count = 0
-    failed_count = 0
+    # Skip games that already have reviews, unless --refresh is passed.
+    done_appids = set()
+    if not args.refresh:
+        done_appids = {
+            row[0]
+            for row in con.execute(
+                "SELECT DISTINCT appid FROM reviews"
+            ).fetchall()
+        }
 
-    consecutive_403 = 0
+    if args.max_games is not None:
+        games = games[: args.max_games]
+
+    inserted_count = 0
+    skipped_reviews = 0
+    skipped_games = 0
+    failed_count = 0
+    consecutive_failures = 0
 
     for appid, name in games:
+        if appid in done_appids:
+            skipped_games += 1
+            continue
+
         print(f"Loading reviews for {appid} - {name}...")
 
         try:
-            reviews = fetch_reviews(appid, max_reviews=MAX_REVIEWS_PER_GAME)
-            time.sleep(0.5)
-
-            # Une requête réussie remet le compteur à zéro
-            consecutive_403 = 0
-
-            game_inserted = 0
-            game_skipped = 0
-
-            for review in reviews:
-                review_data = transform_review(review, appid)
-
-                if load_review(con, review_data):
-                    game_inserted += 1
-                else:
-                    game_skipped += 1
-
-            inserted_count += game_inserted
-            skipped_count += game_skipped
-
-            print(
-                f"App {appid}: {game_inserted} inserted, "
-                f"{game_skipped} already present."
+            reviews = fetch_reviews(
+                appid,
+                max_reviews=args.max_reviews,
+                language=args.language,
+                delay=args.request_delay,
             )
-
-        except RuntimeError as error:
-            if "403" in str(error):
-                consecutive_403 += 1
-                failed_count += 1
-
-                print(
-                    f"App {appid} failed: {error} "
-                    f"({consecutive_403}/10 consecutive 403)"
-                )
-
-                if consecutive_403 >= 10:
-                    print("10 consecutive 403 errors. Stopping ingestion.")
-                    break
-
-            else:
-                print(f"App {appid} failed: {error}")
-                failed_count += 1
-
-        except Exception as error:
-            print(f"App {appid} failed: {error}")
+        except SteamAPIError as error:
             failed_count += 1
+            consecutive_failures += 1
+            print(
+                f"App {appid} failed: {error} "
+                f"({consecutive_failures}/{args.max_consecutive_failures} in a row)"
+            )
+            if consecutive_failures >= args.max_consecutive_failures:
+                print("Too many consecutive failures. Stopping ingestion.")
+                break
+            continue
+
+        # The request went through: the API is responding, reset the breaker.
+        consecutive_failures = 0
+
+        game_inserted = 0
+        game_skipped = 0
+
+        for review in reviews:
+            review_data = transform_review(review, appid)
+
+            if load_review(con, review_data):
+                game_inserted += 1
+            else:
+                game_skipped += 1
+
+        inserted_count += game_inserted
+        skipped_reviews += game_skipped
+
+        print(
+            f"App {appid}: {game_inserted} inserted, "
+            f"{game_skipped} already present."
+        )
 
     con.close()
 
     print()
     print("Loading summary:")
-    print(f"Inserted: {inserted_count}")
-    print(f"Skipped:  {skipped_count}")
-    print(f"Failed:   {failed_count}")
+    print(f"Reviews inserted: {inserted_count}")
+    print(f"Reviews skipped:  {skipped_reviews}")
+    print(f"Games skipped:    {skipped_games}")
+    print(f"Failed:           {failed_count}")
 
 
 if __name__ == "__main__":

@@ -1,83 +1,87 @@
 import os
 from datetime import datetime
-import time
-import requests
+
 from dotenv import load_dotenv
 
-load_dotenv()
-
-API_KEY = os.getenv("STEAM_API_KEY")
-
-if not API_KEY:
-    raise RuntimeError("STEAM_API_KEY is missing from .env")
+import steam_api
+from steam_api import DEFAULT_REQUEST_DELAY, SteamAPIError
 
 APP_ID = 620
+STEAM_APP_LIST_URL = "https://api.steampowered.com/IStoreService/GetAppList/v1/"
 STEAM_APP_DETAILS_URL = "https://store.steampowered.com/api/appdetails"
 
 
-def fetch_app_list(max_results=10):
-    """Fetch a list of Steam applications."""
+def get_api_key():
+    """Read STEAM_API_KEY from the environment (loaded lazily, not at import)."""
 
-    url = "https://api.steampowered.com/IStoreService/GetAppList/v1/"
+    load_dotenv()
+    api_key = os.getenv("STEAM_API_KEY")
+
+    if not api_key:
+        raise RuntimeError("STEAM_API_KEY is missing from .env")
+
+    return api_key
+
+
+def fetch_app_list(api_key, max_results=10, start_appid=0, delay=DEFAULT_REQUEST_DELAY):
+    """Fetch a list of Steam applications, following the API pagination.
+
+    `start_appid` lets a run resume where a previous one stopped.
+    """
 
     apps = []
-    last_appid = 0
+    last_appid = start_appid
 
     while len(apps) < max_results:
         remaining = max_results - len(apps)
 
-        params = {
-            "key": API_KEY,
-            "include_games": True,
-            "max_results": min(remaining, 50000),
-            "last_appid": last_appid,
-        }
+        response = steam_api.get(
+            STEAM_APP_LIST_URL,
+            params={
+                "key": api_key,
+                "include_games": True,
+                "max_results": min(remaining, 50000),
+                "last_appid": last_appid,
+            },
+            delay=delay,
+        )
 
-        response = requests.get(url, params=params, timeout=30)
-        response.raise_for_status()
-
-        data = response.json()
-        page = data["response"]["apps"]
+        payload = response.json()["response"]
+        page = payload.get("apps", [])
 
         if not page:
             break
 
         apps.extend(page)
-
         last_appid = page[-1]["appid"]
 
-        if len(page) < params["max_results"]:
+        if not payload.get("have_more_results"):
             break
 
     return apps[:max_results]
 
-def fetch_game(appid, max_retries=1):
-    """Fetch raw game data from the Steam Store API."""
 
-    for attempt in range(max_retries + 1):
-        response = requests.get(
-            STEAM_APP_DETAILS_URL,
-            params={"appids": appid},
-            timeout=30,
-        )
+def fetch_game(appid, delay=DEFAULT_REQUEST_DELAY):
+    """Fetch raw game data from the Steam Store API.
 
-        if response.status_code == 403:
-            if attempt < max_retries:
-                print(f"403 for app {appid}. Retrying in 2s...")
-                time.sleep(2)
-                continue
+    Raises SteamAPIError when the store has no usable data for the app
+    (delisted, region-locked, non-game bundle, ...).
+    """
 
-            raise RuntimeError(
-                f"Steam returned 403 for app {appid}"
-            )
+    response = steam_api.get(
+        STEAM_APP_DETAILS_URL,
+        # Pin country + language so prices and genre names stay comparable
+        # across the whole dataset regardless of where the request runs from.
+        params={"appids": appid, "cc": "us", "l": "en"},
+        delay=delay,
+    )
 
-        response.raise_for_status()
+    entry = response.json().get(str(appid), {})
 
-        data = response.json()
+    if not entry.get("success") or "data" not in entry:
+        raise SteamAPIError(f"No store data for app {appid}")
 
-        return data[str(appid)]["data"]
-
-    raise RuntimeError(f"Steam returned 403 for app {appid}")
+    return entry["data"]
 
 
 def transform_game(game):
@@ -149,27 +153,15 @@ def transform_game(game):
     }
 
 
-# def main():
-#     apps = fetch_app_list(max_results=10)
-
-#     for app in apps:
-#         appid = app["appid"]
-
-#         print(f"Fetching {appid} - {app['name']}...")
-
-#         raw_game = fetch_game(appid)
-#         game_data = transform_game(raw_game)
-
-#         print(game_data)
-#         print()
-
 def main():
-    apps = fetch_app_list(max_results=30)
+    api_key = get_api_key()
+    apps = fetch_app_list(api_key, max_results=30)
 
     print(f"Number of apps: {len(apps)}")
 
     for app in apps:
         print(app["appid"], app["name"])
-        
+
+
 if __name__ == "__main__":
     main()
